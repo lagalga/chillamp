@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EQ_FREQUENCIES } from '../constants/eq';
+import { resolveStreamUrl } from '../services/streamUrl';
 import { usePlayerStore } from '../stores/playerStore';
 
 const STREAM_TIMEOUT_MS = 8000;
 const FETCH_CHUNK_MIN = 32768; // 32 KB → ~2 s at 128 kbps before first decode attempt
 
 // Safari's createMediaElementSource doesn't capture live streaming audio.
-// Detect once at module load so it's stable.
 const IS_SAFARI =
   typeof navigator !== 'undefined' &&
   /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -27,14 +27,15 @@ export function useAudioEngine() {
   const eqGainRef = useRef<GainNode | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Safari fetch-stream state
   const fetchReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
   const activeSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const fetchNextTimeRef = useRef(0);
   const currentStreamUrlRef = useRef<string>('');
+  const webAudioRef = useRef(false);
 
   const [vuLevels, setVuLevels] = useState<VuLevels>({ left: 0, right: 0 });
   const [needsInteraction, setNeedsInteraction] = useState(false);
+  const [webAudioEnabled, setWebAudioEnabled] = useState(false);
 
   const {
     currentStation,
@@ -97,7 +98,6 @@ export function useAudioEngine() {
     }
   }, []);
 
-  // Non-Safari only: connect audio element into the graph.
   const connectSource = useCallback(() => {
     const audio = audioRef.current;
     const ctx = ctxRef.current;
@@ -113,96 +113,97 @@ export function useAudioEngine() {
     }
   }, []);
 
-  // Safari: stop fetch stream and scheduled buffer sources.
   const stopFetchStream = useCallback(() => {
     fetchReaderRef.current?.cancel();
     fetchReaderRef.current = null;
     activeSourcesRef.current.forEach((s) => {
-      try { s.stop(0); } catch { /* already stopped */ }
+      try {
+        s.stop(0);
+      } catch {
+        /* already stopped */
+      }
     });
     activeSourcesRef.current.clear();
   }, []);
 
-  // Safari: fetch stream → decode chunks → schedule AudioBufferSourceNodes through graph.
-  const startFetchStream = useCallback(async (url: string) => {
-    stopFetchStream();
-    const ctx = ctxRef.current;
-    if (!ctx) return;
+  const startFetchStream = useCallback(
+    async (url: string) => {
+      stopFetchStream();
+      const ctx = ctxRef.current;
+      if (!ctx) return;
 
-    let res: Response;
-    try {
-      res = await fetch(url);
-    } catch {
-      setStreamError('Error al conectar con la estación. Probando siguiente...');
-      setTimeout(() => nextStation(), 1500);
-      return;
-    }
-
-    if (!res.ok || !res.body) {
-      setStreamError('Error al cargar la estación. Probando siguiente...');
-      setTimeout(() => nextStation(), 1500);
-      return;
-    }
-
-    const reader = res.body.getReader();
-    fetchReaderRef.current = reader;
-    fetchNextTimeRef.current = ctx.currentTime + 0.3;
-
-    setLoading(false);
-    setStreamError(null);
-    setPlaying(true);
-
-    let pending = new Uint8Array(0);
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const merged = new Uint8Array(pending.length + value.length);
-        merged.set(pending);
-        merged.set(value, pending.length);
-        pending = merged;
-
-        if (pending.length < FETCH_CHUNK_MIN) continue;
-
-        let decoded: AudioBuffer;
-        try {
-          decoded = await ctx.decodeAudioData(pending.buffer.slice(0));
-          pending = new Uint8Array(0);
-        } catch {
-          continue; // incomplete frames — accumulate more
-        }
-
-        const bufSrc = ctx.createBufferSource();
-        bufSrc.buffer = decoded;
-        bufSrc.connect(filtersRef.current[0]);
-        bufSrc.connect(bypassGainRef.current!);
-
-        activeSourcesRef.current.add(bufSrc);
-        bufSrc.onended = () => activeSourcesRef.current.delete(bufSrc);
-
-        const startAt = Math.max(ctx.currentTime + 0.05, fetchNextTimeRef.current);
-        bufSrc.start(startAt);
-        fetchNextTimeRef.current = startAt + decoded.duration;
+      let res: Response;
+      try {
+        res = await fetch(url);
+      } catch {
+        setStreamError('Error al conectar con la estación. Probando siguiente...');
+        setTimeout(() => nextStation(), 1500);
+        return;
       }
-    } catch {
-      // Reader cancelled — expected on stop/station change
-    }
 
-    setPlaying(false);
-  }, [stopFetchStream, setLoading, setPlaying, setStreamError, nextStation]);
+      if (!res.ok || !res.body) {
+        setStreamError('Error al cargar la estación. Probando siguiente...');
+        setTimeout(() => nextStation(), 1500);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      fetchReaderRef.current = reader;
+      fetchNextTimeRef.current = ctx.currentTime + 0.3;
+
+      setLoading(false);
+      setStreamError(null);
+      setPlaying(true);
+
+      let pending = new Uint8Array(0);
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const merged = new Uint8Array(pending.length + value.length);
+          merged.set(pending);
+          merged.set(value, pending.length);
+          pending = merged;
+
+          if (pending.length < FETCH_CHUNK_MIN) continue;
+
+          let decoded: AudioBuffer;
+          try {
+            decoded = await ctx.decodeAudioData(pending.buffer.slice(0));
+            pending = new Uint8Array(0);
+          } catch {
+            continue;
+          }
+
+          const bufSrc = ctx.createBufferSource();
+          bufSrc.buffer = decoded;
+          bufSrc.connect(filtersRef.current[0]);
+          bufSrc.connect(bypassGainRef.current!);
+
+          activeSourcesRef.current.add(bufSrc);
+          bufSrc.onended = () => activeSourcesRef.current.delete(bufSrc);
+
+          const startAt = Math.max(ctx.currentTime + 0.05, fetchNextTimeRef.current);
+          bufSrc.start(startAt);
+          fetchNextTimeRef.current = startAt + decoded.duration;
+        }
+      } catch {
+        // Reader cancelled — expected on stop/station change
+      }
+
+      setPlaying(false);
+    },
+    [stopFetchStream, setLoading, setPlaying, setStreamError, nextStation],
+  );
 
   useEffect(() => {
-    initGraph();
-    // No ctx.close() in cleanup — StrictMode double-invokes this effect; closing the ctx
-    // asynchronously leaves ctxRef pointing at a 'closed' context by the time play() runs.
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       stopFetchStream();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [stopFetchStream]);
 
   const clearStreamTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -220,26 +221,31 @@ export function useAudioEngine() {
   }, [clearStreamTimeout, nextStation, setStreamError]);
 
   const play = useCallback(async () => {
-    initGraph();
-    const ctx = ctxRef.current;
     const audio = audioRef.current;
-    if (!ctx || !audio) return;
+    if (!audio) return;
+
+    const useWebAudio = webAudioRef.current;
 
     try {
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
+      if (useWebAudio) {
+        initGraph();
+        const ctx = ctxRef.current;
+        if (!ctx) return;
+        if (ctx.state === 'suspended') await ctx.resume();
+
+        if (IS_SAFARI) {
+          void startFetchStream(currentStreamUrlRef.current);
+          setNeedsInteraction(false);
+          return;
+        }
+
+        connectSource();
       }
 
-      if (IS_SAFARI) {
-        void startFetchStream(currentStreamUrlRef.current);
-        setNeedsInteraction(false);
-      } else {
-        connectSource();
-        await audio.play();
-        setPlaying(true);
-        setNeedsInteraction(false);
-        setStreamError(null);
-      }
+      await audio.play();
+      setPlaying(true);
+      setNeedsInteraction(false);
+      setStreamError(null);
     } catch (e) {
       console.warn('[AudioEngine] play failed:', e);
       setNeedsInteraction(true);
@@ -248,7 +254,7 @@ export function useAudioEngine() {
   }, [initGraph, connectSource, startFetchStream, setPlaying, setStreamError]);
 
   const pause = useCallback(() => {
-    if (IS_SAFARI) {
+    if (IS_SAFARI && webAudioRef.current) {
       stopFetchStream();
       setPlaying(false);
     } else {
@@ -258,7 +264,7 @@ export function useAudioEngine() {
   }, [stopFetchStream, setPlaying]);
 
   const stop = useCallback(() => {
-    if (IS_SAFARI) {
+    if (IS_SAFARI && webAudioRef.current) {
       stopFetchStream();
       setPlaying(false);
     } else {
@@ -275,28 +281,30 @@ export function useAudioEngine() {
     if (!audio || !currentStation) return;
 
     const shouldAutoPlay = isPlaying;
+    const { url: streamUrl, webAudio } = resolveStreamUrl(currentStation.url);
+    webAudioRef.current = webAudio;
+    setWebAudioEnabled(webAudio);
+    currentStreamUrlRef.current = streamUrl;
+
     setLoading(true);
     clearStreamTimeout();
     startStreamTimeout();
-
     stopFetchStream();
 
-    // Always proxy through /api/stream so Web Audio (EQ / VU / viz) gets CORS-safe media.
-    // Vite serves this in DEV; Vercel Edge Function serves it in PROD.
-    const streamUrl = `/api/stream?url=${encodeURIComponent(currentStation.url)}`;
-    currentStreamUrlRef.current = streamUrl;
-
-    if (IS_SAFARI) {
+    // Safari + CORS proxy → fetch/decode pipeline for Web Audio
+    if (IS_SAFARI && webAudio) {
       clearStreamTimeout();
       if (shouldAutoPlay) {
-        // startFetchStream sets loading false once the first chunk is decoded.
         void play();
       } else {
         setLoading(false);
       }
-      return () => { stopFetchStream(); };
+      return () => {
+        stopFetchStream();
+      };
     }
 
+    // Element playback (Chrome/Firefox always; Safari without proxy)
     audio.removeAttribute('crossorigin');
     audio.src = streamUrl;
     audio.load();
@@ -338,7 +346,7 @@ export function useAudioEngine() {
     if (gainRef.current) {
       gainRef.current.gain.value = v;
     }
-    if (audioRef.current && !IS_SAFARI) {
+    if (audioRef.current) {
       audioRef.current.volume = v;
     }
   }, [volume, isMuted]);
@@ -366,7 +374,7 @@ export function useAudioEngine() {
 
     const updateVu = () => {
       const analyser = analyserRef.current;
-      if (analyser && isPlaying) {
+      if (analyser && isPlaying && webAudioEnabled) {
         const data = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(data);
 
@@ -399,13 +407,14 @@ export function useAudioEngine() {
 
     rafId = requestAnimationFrame(updateVu);
     return () => cancelAnimationFrame(rafId);
-  }, [isPlaying]);
+  }, [isPlaying, webAudioEnabled]);
 
   return {
     audioRef,
     analyserRef,
     vuLevels,
     needsInteraction,
+    webAudioEnabled,
     play,
     pause,
     stop,

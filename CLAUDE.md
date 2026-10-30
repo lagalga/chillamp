@@ -39,12 +39,13 @@ En su lugar: `fetch(proxyUrl)` → acumular chunks de 32 KB → `decodeAudioData
 El `<audio>` element NO se usa para playback en Safari, solo existía para error detection (actualmente no se usa en Safari).
 
 ## Proxy de streams (DEV + PROD)
-El client siempre usa `/api/stream?url=...` (necesario para EQ / VU / visualizer vía Web Audio).
+`resolveStreamUrl()` en `src/services/streamUrl.ts`:
 
-- **DEV:** plugin `stream-proxy` en `vite.config.ts` (redirects ≤5 hops + CORS `*`)
-- **PROD:** Edge Function en `api/stream.ts` (mismo contrato)
+- **DEV:** `/api/stream` vía plugin Vite (`vite.config.ts`) → Web Audio ON
+- **PROD + `VITE_STREAM_PROXY_URL`:** proxy externo durable (Cloudflare Worker en `workers/stream-proxy.js`) → Web Audio ON
+- **PROD sin proxy:** URL directa de la emisora → reproducción fiable, Web Audio OFF
 
-Sin el proxy, `createMediaElementSource` + AnalyserNode reciben silencio / ceros por CORS.
+**No usar Edge Function de Vercel para streams en vivo** — timeout ~25s corta el audio (síntoma: suena unos segundos y se para, peor en móvil).
 
 ## Trampas conocidas
 

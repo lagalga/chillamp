@@ -31,7 +31,8 @@ export function PlayerWindow() {
     toggleWindow: s.toggleWindow,
   })));
 
-  const { audioRef, vuLevels, needsInteraction, play, pause, stop } = useAudioEngineContext();
+  const { audioRef, vuLevels, needsInteraction, webAudioEnabled, play, pause, stop } =
+    useAudioEngineContext();
 
   return (
     <div className="player-window">
@@ -134,6 +135,11 @@ export function PlayerWindow() {
 
       {needsInteraction && (
         <p className="player-hint">Haz clic en Reproducir para iniciar el audio</p>
+      )}
+      {!webAudioEnabled && (
+        <p className="player-hint">
+          Modo directo: el stream no se corta. EQ/VU/viz requieren proxy (ver README).
+        </p>
       )}
       {streamError && <p className="player-error" role="alert">{streamError}</p>}
     </div>
