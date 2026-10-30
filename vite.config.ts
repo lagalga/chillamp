@@ -30,7 +30,7 @@ function proxyStream(
   const proxyReq = lib.get(
     url.toString(),
     { headers: { 'User-Agent': 'ChillAmp/1.0', 'Icy-MetaData': '0' } },
-    (proxyRes) => {
+    (proxyRes: IncomingMessage) => {
       const status = proxyRes.statusCode ?? 200;
       if ([301, 302, 303, 307, 308].includes(status) && proxyRes.headers.location) {
         proxyRes.resume();
