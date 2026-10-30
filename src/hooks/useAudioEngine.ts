@@ -281,9 +281,9 @@ export function useAudioEngine() {
 
     stopFetchStream();
 
-    const streamUrl = import.meta.env.DEV
-      ? `/api/stream?url=${encodeURIComponent(currentStation.url)}`
-      : currentStation.url;
+    // Always proxy through /api/stream so Web Audio (EQ / VU / viz) gets CORS-safe media.
+    // Vite serves this in DEV; Vercel Edge Function serves it in PROD.
+    const streamUrl = `/api/stream?url=${encodeURIComponent(currentStation.url)}`;
     currentStreamUrlRef.current = streamUrl;
 
     if (IS_SAFARI) {

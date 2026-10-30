@@ -38,13 +38,13 @@ crossOrigin se elimina en DEV (proxy same-origin), se pone 'anonymous' en PROD.
 En su lugar: `fetch(proxyUrl)` → acumular chunks de 32 KB → `decodeAudioData` → `AudioBufferSourceNode` → graph → destination.  
 El `<audio>` element NO se usa para playback en Safari, solo existía para error detection (actualmente no se usa en Safari).
 
-## Proxy de streams (DEV)
-`vite.config.ts` tiene un plugin `stream-proxy` que:
-- Sirve `/api/stream?url=...`
-- Sigue redirects hasta 5 hops
-- Añade `Access-Control-Allow-Origin: *`
+## Proxy de streams (DEV + PROD)
+El client siempre usa `/api/stream?url=...` (necesario para EQ / VU / visualizer vía Web Audio).
 
-En PROD los streams se llaman directamente (necesitarían CORS o un proxy externo).
+- **DEV:** plugin `stream-proxy` en `vite.config.ts` (redirects ≤5 hops + CORS `*`)
+- **PROD:** Edge Function en `api/stream.ts` (mismo contrato)
+
+Sin el proxy, `createMediaElementSource` + AnalyserNode reciben silencio / ceros por CORS.
 
 ## Trampas conocidas
 
