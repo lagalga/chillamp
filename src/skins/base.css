@@ -1,0 +1,109 @@
+:root {
+  --skin-bg: #1a1a1a;
+  --skin-surface: #2a2a2a;
+  --skin-surface-light: #3a3a3a;
+  --skin-border: #111;
+  --skin-border-light: #555;
+  --skin-title: #ffff00;
+  --skin-title-text: #000;
+  --skin-text: #00ff00;
+  --skin-text-dim: #00aa00;
+  --skin-accent: #00ff00;
+  --skin-accent-alt: #ffff00;
+  --skin-button: #4a4a4a;
+  --skin-button-hover: #5a5a5a;
+  --skin-vu-low: #00ff00;
+  --skin-vu-mid: #aaff00;
+  --skin-vu-high: #ffff00;
+  --skin-display-bg: #000;
+  --skin-display-text: #00ff00;
+  --skin-shadow: rgba(0, 0, 0, 0.6);
+  --skin-glow: transparent;
+  --font-main: 'VT323', 'Courier New', monospace;
+  --font-display: 'VT323', monospace;
+}
+
+[data-skin='classic'] {
+  --skin-bg: #1a1a1a;
+  --skin-surface: #3c3c3c;
+  --skin-surface-light: #4a4a4a;
+  --skin-border: #1a1a1a;
+  --skin-border-light: #666;
+  --skin-title: linear-gradient(180deg, #ffff00 0%, #ccaa00 100%);
+  --skin-title-text: #000;
+  --skin-text: #00ff00;
+  --skin-text-dim: #008800;
+  --skin-accent: #00ff00;
+  --skin-accent-alt: #ffff00;
+  --skin-button: #5a5a5a;
+  --skin-button-hover: #6a6a6a;
+  --skin-vu-low: #00ff00;
+  --skin-vu-mid: #88ff00;
+  --skin-vu-high: #ffff00;
+  --skin-display-bg: #000;
+  --skin-display-text: #00ff00;
+}
+
+[data-skin='midnight'] {
+  --skin-bg: #0a0e1a;
+  --skin-surface: #141c2e;
+  --skin-surface-light: #1e2a42;
+  --skin-border: #060a12;
+  --skin-border-light: #2a3f5f;
+  --skin-title: linear-gradient(180deg, #00d4ff 0%, #0066aa 100%);
+  --skin-title-text: #001a2e;
+  --skin-text: #00d4ff;
+  --skin-text-dim: #007799;
+  --skin-accent: #00d4ff;
+  --skin-accent-alt: #66eeff;
+  --skin-button: #1e2a42;
+  --skin-button-hover: #2a3f5f;
+  --skin-vu-low: #00d4ff;
+  --skin-vu-mid: #4488ff;
+  --skin-vu-high: #aa66ff;
+  --skin-display-bg: #060a12;
+  --skin-display-text: #00d4ff;
+}
+
+[data-skin='cassette'] {
+  --skin-bg: #2a2218;
+  --skin-surface: #4a3c2e;
+  --skin-surface-light: #5c4a38;
+  --skin-border: #1a1410;
+  --skin-border-light: #7a6550;
+  --skin-title: linear-gradient(180deg, #f4a460 0%, #c87830 100%);
+  --skin-title-text: #2a1a08;
+  --skin-text: #f4d4a0;
+  --skin-text-dim: #a08060;
+  --skin-accent: #e8a050;
+  --skin-accent-alt: #f4c878;
+  --skin-button: #5c4a38;
+  --skin-button-hover: #6e5a44;
+  --skin-vu-low: #e8a050;
+  --skin-vu-mid: #f4c060;
+  --skin-vu-high: #ffe080;
+  --skin-display-bg: #1a1410;
+  --skin-display-text: #f4d4a0;
+}
+
+[data-skin='psychedelic'] {
+  --skin-bg: #1a0a2e;
+  --skin-surface: #2d1b4e;
+  --skin-surface-light: #3d2b6e;
+  --skin-border: #0a0518;
+  --skin-border-light: #6b3fa0;
+  --skin-title: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
+  --skin-title-text: #fff;
+  --skin-text: #ff66ff;
+  --skin-text-dim: #aa44aa;
+  --skin-accent: #ff00ff;
+  --skin-accent-alt: #00ffff;
+  --skin-button: #3d2b6e;
+  --skin-button-hover: #5a3f9e;
+  --skin-vu-low: #ff00ff;
+  --skin-vu-mid: #aa44ff;
+  --skin-vu-high: #00ffff;
+  --skin-display-bg: #0a0518;
+  --skin-display-text: #ff66ff;
+  --skin-glow: rgba(255, 0, 255, 0.3);
+}
